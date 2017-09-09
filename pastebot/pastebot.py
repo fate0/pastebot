@@ -2,6 +2,7 @@
 
 from __future__ import unicode_literals, division
 
+import os
 import sys
 import time
 import yara
@@ -11,6 +12,7 @@ import signal
 import logging
 import requests
 import threading
+from .weibo import WeiBo
 
 
 logger = logging.getLogger(__name__)
@@ -44,12 +46,13 @@ class PasteBot(object):
         self.last_query_lock = threading.Lock()
         self.sentry_api = None
         self.pastebin_api = "https://pastebin.com/api_scraping.php"
+        self.pastebin_post_api = 'https://pastebin.com/api/api_post.php'
         self.stopped = False
         self.request_timeout = 5
         self.thread_pool = []
         self.thread_pool_size = 10
         self.sentry_client = None
-        self.qps = 0.5
+        self.qps = 1
 
     def _install_signal_handlers(self):
         signal.signal(signal.SIGINT, self.request_stop)
@@ -67,6 +70,9 @@ class PasteBot(object):
 
     def request_force_stop(self, signum, _):
         raise SystemExit
+
+    def new_weibo_post(self, paste_info, result):
+        print(paste_info, result)
 
     def fetch_and_parse(self):
         while not self.stopped:
@@ -103,8 +109,7 @@ class PasteBot(object):
             if not result:
                 continue
 
-            print(result)
-            # TODO: post to pastebin private
+            self.new_weibo_post(paste_info, result)
 
     def start(self):
         self._install_signal_handlers()

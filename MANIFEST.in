@@ -1,0 +1,5 @@
+include LICENSE
+include README.md
+exclude __pycache__
+recursive-include pastebot/rules
+recursive-exclude *.pyc

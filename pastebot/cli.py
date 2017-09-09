@@ -15,3 +15,11 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option("wb-key", help="weibo api key")
 def main():
     pass
+
+
+@click.group(context_settings=CONTEXT_SETTINGS)
+@click.option("key", help="微博 App Key")
+@click.option("secret", help="微博 App Secret")
+@click.option("domain", help="微博安全域名")
+def weibo():
+    pass
