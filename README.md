@@ -1,6 +1,6 @@
 # pastebot
 
-一个监控 pastebin 的敏感内容，并发微博的 bot
+[pastebot](http://weibo.com/pastebot) 是一个监控 pastebin 的敏感内容，并发微博的 bot
 
 ### 安装
 
