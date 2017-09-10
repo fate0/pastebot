@@ -37,10 +37,7 @@ class WeiBo(object):
         rp = requests.post(self.sina_oauth2_access_token_url, data=data)
         result = rp.json()
         self.access_token = result['access_token']
-        print(result)
-        print('返回 access_token: {}'.format(result['access_token']))
-        print('过期时间: {}h'.format(int(result['expires_in'])/(60*60)))
-        print('用户 uid: {}'.format(result['uid']))
+        return result
 
     def new_post(self, post):
         if not self.access_token:
