@@ -48,12 +48,4 @@ class WeiBo(object):
             "status": post
         }
         rp = requests.post(self.sina_new_post_url, data=data)
-        print(rp.text)
-
-
-if __name__ == '__main__':
-    wb = WeiBo()
-    wb.secure_domain = 'your domain'
-    wb.app_key = 'your key'
-    wb.app_secret = 'your secret'
-    wb.new_post('http://{} 你好啊'.format(wb.secure_domain))
+        return rp.text

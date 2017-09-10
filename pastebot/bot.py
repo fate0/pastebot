@@ -39,20 +39,41 @@ def signal_name(signum):
 
 class PasteBot(object):
     def __init__(self):
-        self.rules = yara.compile('./rules/index.yar')
-        self.paste_queue = queue.Queue()
-        self.last_query_result = []
-        self.last_query_time = 0
-        self.last_query_lock = threading.Lock()
-        self.sentry_api = None
-        self.pastebin_api = "https://pastebin.com/api_scraping.php"
-        self.pastebin_post_api = 'https://pastebin.com/api/api_post.php'
-        self.stopped = False
-        self.request_timeout = 5
-        self.thread_pool = []
-        self.thread_pool_size = 10
-        self.sentry_client = None
+        rule_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rules/index.yar')
+        self._rules = yara.compile(rule_path)
+        self._paste_queue = queue.Queue()
+        self._last_query_result = []
+        self._last_query_time = 0
+        self._last_query_lock = threading.Lock()
+
+        self._pastebin_api = "https://pastebin.com/api_scraping.php"
+        self._stopped = False
+
+        self._thread_pool = []
+        self._sentry_client = None
+        self._weibo_client = None
+
+        # 用户可设置属性
         self.qps = 1
+        self.sentry_dsn = None
+        self.request_timeout = 5
+        self.thread_pool_size = 10
+        self.weibo_access_token = None
+
+    @property
+    def weibo_client(self):
+        if not self._weibo_client:
+            self._weibo_client = WeiBo()
+            self._weibo_client.access_token = self.weibo_access_token
+
+        return self._weibo_client
+
+    @property
+    def sentry_client(self):
+        if not self._sentry_client:
+            self._sentry_client = raven.Client(self.sentry_dsn)
+
+        return self._sentry_client
 
     def _install_signal_handlers(self):
         signal.signal(signal.SIGINT, self.request_stop)
@@ -65,19 +86,30 @@ class PasteBot(object):
         signal.signal(signal.SIGINT, self.request_force_stop)
         signal.signal(signal.SIGTERM, self.request_force_stop)
 
-        self.stopped = True
+        self._stopped = True
         logger.info('Press Ctrl+C again for a cold shutdown.')
 
     def request_force_stop(self, signum, _):
         raise SystemExit
 
     def new_weibo_post(self, paste_info, result):
-        print(paste_info, result)
+        print(paste_info)
+        print(result)
+        try:
+            self.weibo_client.new_post("%s 测试使用, 发送者: %s " % (
+                paste_info['full_url'],
+                paste_info['user'] or 'guest'
+            ))
+        except requests.Timeout:
+            pass
+        except Exception:
+            logger.error("Unknown exception", exc_info=True)
+            self.sentry_client.captureException()
 
     def fetch_and_parse(self):
-        while not self.stopped:
+        while not self._stopped:
             try:
-                paste_info = self.paste_queue.get(timeout=1)
+                paste_info = self._paste_queue.get(timeout=1)
             except queue.Empty:
                 continue
             except Exception:
@@ -88,14 +120,13 @@ class PasteBot(object):
             logger.debug("get task %s" % paste_info)
 
             # qps 设置
-            with self.last_query_lock:
+            with self._last_query_lock:
                 cur_time = time.time()
                 delay_time = 1 / self.qps
-                if cur_time - self.last_query_time < delay_time:
-                    time.sleep(delay_time - (cur_time - self.last_query_time))
+                if cur_time - self._last_query_time < delay_time:
+                    time.sleep(delay_time - (cur_time - self._last_query_time))
 
-                self.last_query_time = time.time()
-                print(time.time())
+                self._last_query_time = time.time()
 
             try:
                 rp = requests.get(paste_info['scrape_url'], timeout=5)
@@ -105,7 +136,7 @@ class PasteBot(object):
                 logger.error("Unknown exception", exc_info=True)
                 continue
 
-            result = self.rules.match(data=rp.content)
+            result = self._rules.match(data=rp.content)
             if not result:
                 continue
 
@@ -113,19 +144,18 @@ class PasteBot(object):
 
     def start(self):
         self._install_signal_handlers()
-        self.sentry_client = raven.Client(self.sentry_api)
 
         for i in range(self.thread_pool_size):
             t = threading.Thread(target=self.fetch_and_parse)
             t.start()
 
-            self.thread_pool.append(t)
+            self._thread_pool.append(t)
 
-        while not self.stopped:
+        while not self._stopped:
             time.sleep(3)
 
             try:
-                rp = requests.get(self.pastebin_api, timeout=self.request_timeout)
+                rp = requests.get(self._pastebin_api, timeout=self.request_timeout)
             except requests.Timeout:
                 continue
             except Exception:
@@ -140,16 +170,11 @@ class PasteBot(object):
                 continue
 
             for each_paste_info in pastes_info:
-                if each_paste_info not in self.last_query_result:
-                    self.paste_queue.put(each_paste_info)
+                if each_paste_info not in self._last_query_result:
+                    self._paste_queue.put(each_paste_info)
                     logger.debug("push task")
 
-            self.last_query_result = pastes_info
+            self._last_query_result = pastes_info
 
-        for t in self.thread_pool:
+        for t in self._thread_pool:
             t.join()
-
-
-if __name__ == '__main__':
-    pb = PasteBot()
-    pb.start()
