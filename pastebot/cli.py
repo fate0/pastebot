@@ -27,15 +27,15 @@ def serve(token, dsn, pool, qps, timeout):
     pb.weibo_access_token = token
     pb.sentry_dsn = dsn
 
-    if pool < 0:
+    if pool <= 0:
         raise click.BadParameter("线程池大小必须大于 0")
     pb.thread_pool_size = pool
 
-    if qps < 0:
+    if qps <= 0:
         raise click.BadParameter("qps 必须大于 0")
     pb.qps = qps
 
-    if timeout < 0:
+    if timeout <= 0:
         raise click.BadParameter("timeout 必须大于 0")
     pb.request_timeout = timeout
 
