@@ -16,7 +16,6 @@ from .weibo import WeiBo
 
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.ERROR)
 
 
 _signames = dict((getattr(signal, signame), signame)
@@ -92,14 +91,28 @@ class PasteBot(object):
     def request_force_stop(self, signum, _):
         raise SystemExit
 
-    def new_weibo_post(self, paste_info, result):
-        print(paste_info)
-        print(result)
+    def new_weibo_post(self, paste_info, results):
+        result_types = []
+        result_num = 1
+        for each_result in results:
+            result_type = each_result.meta.get('type')
+            if result_type:
+                result_types.append(result_type)
+
+            if len(each_result.strings) > result_num:
+                result_num = len(each_result.strings)
+
+        post_msg = "{}\n类型: {}".format(paste_info['full_url'], ",".join(result_types))
+        if result_num > 1:
+            post_msg += "\n数量: {}".format(result_num)
+        if paste_info['title']:
+            post_msg += "\n标题: {}".format(paste_info['title'])
+        if paste_info['user']:
+            post_msg += "\n作者: {}".format(paste_info['user'])
+
         try:
-            self.weibo_client.new_post("%s 测试使用, 发送者: %s " % (
-                paste_info['full_url'],
-                paste_info['user'] or 'guest'
-            ))
+            print(post_msg)
+            self.weibo_client.new_post(post_msg)
         except requests.Timeout:
             pass
         except Exception:
