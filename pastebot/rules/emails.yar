@@ -7,5 +7,5 @@ rule emails
         $email = /\b[\w\._%+-]+@[\w\.-]+\.\w{2,10}\b/
 
     condition:
-        #email > 20
+        #email > 50
 }
