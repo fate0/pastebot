@@ -16,15 +16,16 @@ def main():
 
 
 @main.command(context_settings=CONTEXT_SETTINGS)
-@click.option("--token", required=True, help="微博 access token")
+@click.option("--tokens", required=True, help="微博 access tokens")
 @click.option("--dsn", default=None, help="sentry dsn")
 @click.option("--pool", type=click.INT, default=10, help="线程池大小")
 @click.option("--qps", type=click.FLOAT, default=1, help="qps")
 @click.option("--timeout", type=click.FLOAT, default=5, help="请求 timeout")
-def serve(token, dsn, pool, qps, timeout):
+def serve(tokens, dsn, pool, qps, timeout):
     """开始运行 pastebot"""
+    tokens = tokens.split(',')
     pb = pastebot.PasteBot()
-    pb.weibo_access_token = token
+    pb.weibo_access_tokens = tokens
     pb.sentry_dsn = dsn
 
     if pool <= 0:

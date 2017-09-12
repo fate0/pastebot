@@ -4,12 +4,7 @@
 
 ### 安装
 
-使用 pip 安装:
-```
-$ pip install -U pastebot
-```
-
-或使用 GitHub 安装
+使用 GitHub 安装
 ```
 $ pip install -U git+https://github.com/fate0/pastebot.git
 ```
@@ -69,15 +64,17 @@ Usage: pastebot serve [OPTIONS]
   开始运行 pastebot
 
 Options:
-  --token TEXT     微博 access token  [required]
+  --tokens TEXT    微博 access tokens  [required]
   --dsn TEXT       sentry dsn
   --pool INTEGER   线程池大小
   --qps FLOAT      qps
   --timeout FLOAT  请求 timeout
   -h, --help       Show this message and exit.
 
-$ pastebot serve --token you_access_token
+$ pastebot serve --token you_access_token1,your_access_token2
 ```
+
+因为同一个应用下的 access_token 有发送消息条数限制，所以可以设置多个 access_token
 
 ### 参考
 

@@ -5,6 +5,7 @@ from __future__ import unicode_literals, division
 import os
 import sys
 import time
+import json
 import yara
 import raven
 import queue
@@ -12,7 +13,7 @@ import signal
 import logging
 import requests
 import threading
-from .weibo import WeiBo
+from pastebot.weibo import WeiBo
 
 
 logger = logging.getLogger(__name__)
@@ -50,22 +51,25 @@ class PasteBot(object):
 
         self._thread_pool = []
         self._sentry_client = None
-        self._weibo_client = None
+        self._weibo_clients = []
 
         # 用户可设置属性
         self.qps = 1
         self.sentry_dsn = None
         self.request_timeout = 5
         self.thread_pool_size = 10
-        self.weibo_access_token = None
+        self.weibo_index = 0
+        self.weibo_access_tokens = []
 
     @property
     def weibo_client(self):
-        if not self._weibo_client:
-            self._weibo_client = WeiBo()
-            self._weibo_client.access_token = self.weibo_access_token
+        if not self._weibo_clients:
+            for each_token in self.weibo_access_tokens:
+                wb = WeiBo()
+                wb.access_token = each_token.strip()
+                self._weibo_clients.append(wb)
 
-        return self._weibo_client
+        return self._weibo_clients[self.weibo_index % len(self._weibo_clients)]
 
     @property
     def sentry_client(self):
@@ -110,9 +114,18 @@ class PasteBot(object):
         if paste_info['user']:
             post_msg += "\n作者: {}".format(paste_info['user'])
 
+        print(post_msg)
+
         try:
-            print(post_msg)
-            self.weibo_client.new_post(post_msg)
+            result = ''
+            for i in range(3):
+                result = json.loads(self.weibo_client.new_post(post_msg))
+                if 'error' not in result:
+                    break
+
+                self.weibo_index += 1
+            else:
+                self.sentry_client.captureMessage("post weibo error: {}".format(result))
         except requests.Timeout:
             pass
         except Exception:
@@ -169,17 +182,12 @@ class PasteBot(object):
 
             try:
                 rp = requests.get(self._pastebin_api, timeout=self.request_timeout)
+                pastes_info = rp.json()
             except requests.Timeout:
                 continue
             except Exception:
+                self.sentry_client.captureException()
                 logger.error("Unknown exception", exc_info=True)
-                continue
-
-            try:
-                pastes_info = rp.json()
-            except Exception:
-                logger.error("Unknown exception", exc_info=True)
-                print(rp.text)
                 continue
 
             for each_paste_info in pastes_info:
